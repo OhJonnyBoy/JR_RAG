@@ -1,0 +1,115 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 24px;
+  background: #f7f7f7;
+}
+
+.card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  margin-top: 0;
+}
+
+.header-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.header-row h1 {
+  margin: 0;
+}
+
+.company-input-wrap {
+  min-width: 260px;
+}
+
+.company-input-wrap label {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.company-input {
+  width: 35%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.linkedin-link {
+  width: 65%;
+  box-sizing: border-box;
+  background-color: lemonchiffon;
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+label {
+  display: block;
+  margin: 12px 0 8px;
+  font-weight: 700;
+}
+
+textarea {
+  width: 100%;
+  min-height: 150px;
+  box-sizing: border-box;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+button {
+  margin-top: 12px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+button.button-secondary {
+  background: #0d9488;
+}
+
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.doc-link-wrap {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.doc-link-wrap a {
+  color: #2563eb;
+}
+
+.error {
+  margin-top: 8px;
+  color: #b91c1c;
+}

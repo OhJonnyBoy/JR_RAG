@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Description Analyzer</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      function App() {
+        const [companyName, setCompanyName] = React.useState("");
+        const [jobLink, setjobLink] = React.useState("");
+        const [jobDescription, setJobDescription] = React.useState("");
+        const [result, setResult] = React.useState("");
+        const [retrievedChunks, setRetrievedChunks] = React.useState("");
+        const [tailoredCv, setTailoredCv] = React.useState("");
+        const [tailoredChunks, setTailoredChunks] = React.useState("");
+        const [googleDocUrl, setGoogleDocUrl] = React.useState("");
+        const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+        const [isTailoring, setIsTailoring] = React.useState(false);
+        const [statusText, setStatusText] = React.useState("Idle");
+        const [error, setError] = React.useState("");
+
+        const isBusy = isAnalyzing || isTailoring;
+
+        const handleAnalyze = async () => {
+          setError("");
+          setResult("");
+          setRetrievedChunks("");
+          setTailoredCv("");
+          setTailoredChunks("");
+          setGoogleDocUrl("");
+          setStatusText("Starting analysis...");
+
+          if (!jobDescription.trim()) {
+            setError("Please enter a job description.");
+            return;
+          }
+
+          setIsAnalyzing(true);
+          let hadError = false;
+          try {
+            const startResponse = await fetch("http://127.0.0.1:8000/analyze/start", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ job_description: jobDescription }),
+            });
+
+            const startData = await startResponse.json();
+            if (!startResponse.ok) {
+              throw new Error(startData.detail || "Failed to start analysis");
+            }
+
+            const jobId = startData.job_id;
+            let finished = false;
+            while (!finished) {
+              const statusResponse = await fetch(`http://127.0.0.1:8000/analyze/status/${jobId}`);
+              const statusData = await statusResponse.json();
+              if (!statusResponse.ok) {
+                throw new Error(statusData.detail || "Failed to fetch status");
+              }
+
+              setStatusText(statusData.status || "Processing...");
+              if (statusData.is_done) {
+                if (statusData.error) {
+                  throw new Error(statusData.error);
+                }
+                setResult(statusData.result || "");
+                setRetrievedChunks((statusData.chunks || []).join("\n\n---\n\n"));
+                finished = true;
+              } else {
+                await new Promise((resolve) => setTimeout(resolve, 700));
+              }
+            }
+          } catch (err) {
+            hadError = true;
+            setError(err.message);
+            setStatusText("Failed");
+          } finally {
+            setIsAnalyzing(false);
+            if (!hadError) {
+              setStatusText((current) => (current === "Failed" ? current : "Completed"));
+            }
+          }
+        };
+
+        const handleTailorCv = async () => {
+          setError("");
+          setTailoredCv("");
+          setTailoredChunks("");
+          setGoogleDocUrl("");
+          if (!jobDescription.trim()) {
+            setError("Please enter a job description.");
+            return;
+          }
+
+          setIsTailoring(true);
+          setStatusText("Generating tailored CV...");
+          try {
+            const response = await fetch("http://127.0.0.1:8000/tailor-cv", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                job_description: jobDescription,
+                target_word_budget: 1000,
+                max_bullets_per_role: 4,
+                export_to_google_doc: true,
+              }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              const detail = data.detail;
+              const message =
+                typeof detail === "string"
+                  ? detail
+                  : Array.isArray(detail)
+                    ? detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+                    : "Tailored CV request failed";
+              throw new Error(message);
+            }
+
+            setTailoredCv(data.tailored_cv || "");
+            setTailoredChunks((data.selected_chunks || []).join("\n\n---\n\n"));
+            setGoogleDocUrl(data.google_doc_url || "");
+            setStatusText("Tailored CV completed");
+          } catch (err) {
+            setError(err.message);
+            setStatusText("Failed");
+          } finally {
+            setIsTailoring(false);
+          }
+        };
+
+        return (
+          <div className="card">
+            <div className="header-row">
+              <h1>Job Description Analyzer</h1>
+              <div className="company-input-wrap">
+                <label htmlFor="companyName">Company Name</label>
+                <input
+                  id="companyName"
+                  className="company-input"
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Company name"
+                />
+                <input
+                  id="jobLink"
+                  className="linkedin-link"
+                  type="text"
+                  value={jobLink}
+                  onChange={(e) => setjobLink(e.target.value)}
+                  placeholder="LinkedIn Link"
+                />
+              </div>
+            </div>
+            <label htmlFor="jd">Job Description</label>
+            <textarea
+              id="jd"
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              placeholder="Paste the job description here..."
+            />
+
+            <div className="button-row">
+              <button type="button" onClick={handleAnalyze} disabled={isBusy}>
+                {isAnalyzing ? statusText : "Analyze"}
+              </button>
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={handleTailorCv}
+                disabled={isBusy}
+              >
+                {isTailoring ? "Generating tailored CV…" : "Generate tailored CV"}
+              </button>
+            </div>
+
+            {error && <div className="error">{error}</div>}
+            <div style={{ marginTop: "8px", fontSize: "14px" }}>
+              <strong>Status:</strong> {statusText}
+            </div>
+
+            <label htmlFor="result">Analysis Result</label>
+            <textarea
+              id="result"
+              rows="20"
+              value={result}
+              readOnly
+              placeholder="The processed output will appear here..."
+            />
+
+            <label htmlFor="chunks">Skill sets selected</label>
+            <textarea
+              id="chunks"
+              value={retrievedChunks}
+              rows="20"
+              readOnly
+              placeholder="The matching skill set from your CV will appear here..."
+            />
+
+            <label htmlFor="tailoredCv">Tailored CV draft</label>
+            <textarea
+              id="tailoredCv"
+              value={tailoredCv}
+              rows="20"
+              readOnly
+              placeholder="Click “Generate tailored CV” to build a JD-focused resume draft from your CV chunks..."
+            />
+
+            {googleDocUrl ? (
+              <p className="doc-link-wrap">
+                <a href={googleDocUrl} target="_blank" rel="noreferrer">
+                  Open in Google Docs
+                </a>
+              </p>
+            ) : null}
+
+            <label htmlFor="tailoredChunks">Chunks used for tailored CV</label>
+            <textarea
+              id="tailoredChunks"
+              value={tailoredChunks}
+              rows="12"
+              readOnly
+              placeholder="Source chunks selected for the tailored CV will appear here..."
+            />
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
