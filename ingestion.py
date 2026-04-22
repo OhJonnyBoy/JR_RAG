@@ -6,6 +6,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import config as cfg
 import pickle
+from cv_chunker import chunk_cv
 
 INDEX_PATH  = os.path.join(cfg.DATA_DIR, "cv_vectors.index")
 CHUNKS_PATH = os.path.join(cfg.DATA_DIR, "cv_chunks.pkl")
@@ -79,7 +80,8 @@ def create_or_load_index(encoder, chunk_size=cfg.CHUNK_SIZE):
         # 1. Read in the CV from pdf into text object
         raw_text = get_pdf_text(CV_PATH)
 
-        chunks = chunk_text(raw_text,chunk_size)
+        #chunks = chunk_text(raw_text,chunk_size)
+        chunks = chunk_cv(CV_PATH)
 
         # 2. Generate Embeddings (The Vector Math)
         #encoder = SentenceTransformer(MODEL_NAME)

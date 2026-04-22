@@ -16,18 +16,30 @@ Usage:
 import re
 import pdfplumber
  
- 
 # ── Section heading detection ─────────────────────────────────────────────────
 # Adjust these keywords to match the section headings in your CV
 SECTION_KEYWORDS = [
-    "experience", "employment", "work history",
+    "professional experience", "employment", "work history",
     "education", "qualifications",
     "skills", "technologies", "competencies",
-    "summary", "profile", "objective",
-    "projects", "achievements", "certifications", "awards",
-    "publications", "volunteer", "interests",
+    "professional summary", "profile", "objective",
+    "projects", "key achievements", "achievements", "certifications", "awards",
+    "publications", "summary", "interests",
 ]
  
+# PDF font glyph mangling map - add more as you discover them
+PDF_CHAR_MAP = {
+    "û": "–",   # en dash (date ranges like 1993–2001)
+    "ò": "•",   # bullet / separator
+    "à": "à",   # add others as you find them
+}
+
+def _clean_line(line: str) -> str:
+    """Fix mangled characters from PDF font encoding issues."""
+    for bad, good in PDF_CHAR_MAP.items():
+        line = line.replace(bad, good)
+    return line
+
 def _is_section_heading(line: str) -> bool:
     """Return True if the line looks like a CV section heading."""
     clean = line.strip().lower()
@@ -89,7 +101,7 @@ def chunk_cv(pdf_path: str) -> list[str]:
     current_sub = ""          # company / role / institution line
  
     for line in raw_lines:
-        stripped = line.strip()
+        stripped = line.strip() #_clean_line(line)
         if not stripped:
             continue  # skip blank lines
  

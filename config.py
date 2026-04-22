@@ -11,6 +11,6 @@ CHUNKS_PATH = os.path.join(DATA_DIR, "cv_chunks.pkl")
 CV_PATH = os.path.join(DATA_DIR,"Jonathan_Hutchinson_SeniorEngineeringLeader.pdf")
 
 CHUNK_SIZE=500
-NUM_CHUNKS=6
+NUM_CHUNKS=40
 TARGET_CV_WORD_BUDGET=1000
 MAX_BULLETS_PER_ROLE=4
