@@ -103,40 +103,45 @@ def run_tailored_cv_generation(
     max_bullets_per_role=MAX_BULLETS_PER_ROLE,
     return_chunks=False,
     status_callback=None,
+    pre_selected_chunks=None,
 ):
     """
     Build a JD-tailored CV draft from the most relevant CV chunks.
     """
-    if status_callback:
-        status_callback("Initializing embedding model...")
-    encoder = SentenceTransformer(EMBED_MODEL)
+    if pre_selected_chunks is not None:
+        selected_chunks = pre_selected_chunks
+        selected_word_count = sum(len(chunk.split()) for chunk in selected_chunks)
+    else:
+        if status_callback:
+            status_callback("Initializing embedding model...")
+        encoder = SentenceTransformer(EMBED_MODEL)
 
-    if status_callback:
-        status_callback("Loading vector index...")
-    _, chunks = create_or_load_index(encoder, CHUNK_SIZE)
+        if status_callback:
+            status_callback("Loading vector index...")
+        _, chunks = create_or_load_index(encoder, CHUNK_SIZE)
 
-    if status_callback:
-        status_callback("Scoring CV chunks against job description...")
-    query_embedding = encoder.encode(job_description)
-    chunk_embeddings = encoder.encode(chunks)
-    scores = _cosine_similarity_scores(query_embedding, chunk_embeddings)
+        if status_callback:
+            status_callback("Scoring CV chunks against job description...")
+        query_embedding = encoder.encode(job_description)
+        chunk_embeddings = encoder.encode(chunks)
+        scores = _cosine_similarity_scores(query_embedding, chunk_embeddings)
 
-    ranked_indices = np.argsort(-scores)
-    selected_chunks = []
-    selected_word_count = 0
+        ranked_indices = np.argsort(-scores)
+        selected_chunks = []
+        selected_word_count = 0
 
-    for idx in ranked_indices:
-        chunk = chunks[int(idx)]
-        chunk_words = len(chunk.split())
-        if selected_word_count + chunk_words > target_word_budget:
-            continue
-        selected_chunks.append(chunk)
-        selected_word_count += chunk_words
+        for idx in ranked_indices:
+            chunk = chunks[int(idx)]
+            chunk_words = len(chunk.split())
+            if selected_word_count + chunk_words > target_word_budget:
+                continue
+            selected_chunks.append(chunk)
+            selected_word_count += chunk_words
 
-    # Ensure at least one chunk is selected for short/strict budgets.
-    if not selected_chunks and len(chunks) > 0:
-        selected_chunks.append(chunks[int(ranked_indices[0])])
-        selected_word_count = len(selected_chunks[0].split())
+        # Ensure at least one chunk is selected for short/strict budgets.
+        if not selected_chunks and len(chunks) > 0:
+            selected_chunks.append(chunks[int(ranked_indices[0])])
+            selected_word_count = len(selected_chunks[0].split())
 
     prompt = _build_tailored_cv_prompt(
         job_description=job_description,

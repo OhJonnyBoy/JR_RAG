@@ -5,7 +5,10 @@ from threading import Lock, Thread
 from uuid import uuid4
 
 from jr_analysis import run_rag_analysis, run_tailored_cv_generation
-from google_docs_export import export_text_to_google_doc
+from docx_export import export_text_to_docx
+import config as cfg
+import os
+from fastapi.staticfiles import StaticFiles
 
 
 class AnalyzeRequest(BaseModel):
@@ -16,8 +19,9 @@ class TailorCvRequest(BaseModel):
     job_description: str
     target_word_budget: int = 1000
     max_bullets_per_role: int = 4
-    export_to_google_doc: bool = False
-    google_doc_title: str = "Tailored CV Draft"
+    export_to_docx: bool = False
+    docx_title: str = "Tailored CV Draft"
+    selected_chunks: list[str] | None = None
 
 
 class AnalyzeResponse(BaseModel):
@@ -29,7 +33,7 @@ class TailorCvResponse(BaseModel):
     tailored_cv: str
     selected_chunks: list[str]
     selected_word_count: int
-    google_doc_url: str | None = None
+    docx_download_url: str | None = None
 
 
 class AnalyzeAndTailorResponse(BaseModel):
@@ -38,7 +42,7 @@ class AnalyzeAndTailorResponse(BaseModel):
     tailored_cv: str
     selected_chunks: list[str]
     selected_word_count: int
-    google_doc_url: str | None = None
+    docx_download_url: str | None = None
 
 
 class AnalyzeStartResponse(BaseModel):
@@ -65,6 +69,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount the exports directory so files can be downloaded
+export_dir = getattr(cfg, "EXPORTS_DIR", "exports")
+os.makedirs(export_dir, exist_ok=True)
+app.mount("/exports", StaticFiles(directory=export_dir), name="exports")
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -96,18 +105,23 @@ def tailor_cv(request: TailorCvRequest) -> TailorCvResponse:
             target_word_budget=request.target_word_budget,
             max_bullets_per_role=request.max_bullets_per_role,
             return_chunks=True,
+            pre_selected_chunks=request.selected_chunks,
         )
-        google_doc_url = None
-        if request.export_to_google_doc:
-            google_doc_url = export_text_to_google_doc(
+        docx_download_url = None
+        if request.export_to_docx:
+            local_path = export_text_to_docx(
                 text=tailored_cv,
-                title=request.google_doc_title,
+                title=request.docx_title,
             )
+            # local_path is like 'exports\filename.docx'
+            filename = os.path.basename(local_path)
+            docx_download_url = f"/exports/{filename}"
+            
         return TailorCvResponse(
             tailored_cv=tailored_cv,
             selected_chunks=selected_chunks,
             selected_word_count=selected_word_count,
-            google_doc_url=google_doc_url,
+            docx_download_url=docx_download_url,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -130,20 +144,24 @@ def analyze_and_tailor(request: TailorCvRequest) -> AnalyzeAndTailorResponse:
             target_word_budget=request.target_word_budget,
             max_bullets_per_role=request.max_bullets_per_role,
             return_chunks=True,
+            pre_selected_chunks=request.selected_chunks,
         )
-        google_doc_url = None
-        if request.export_to_google_doc:
-            google_doc_url = export_text_to_google_doc(
+        docx_download_url = None
+        if request.export_to_docx:
+            local_path = export_text_to_docx(
                 text=tailored_cv,
-                title=request.google_doc_title,
+                title=request.docx_title,
             )
+            filename = os.path.basename(local_path)
+            docx_download_url = f"/exports/{filename}"
+            
         return AnalyzeAndTailorResponse(
             analysis_result=analysis_result,
             analysis_chunks=analysis_chunks,
             tailored_cv=tailored_cv,
             selected_chunks=selected_chunks,
             selected_word_count=selected_word_count,
-            google_doc_url=google_doc_url,
+            docx_download_url=docx_download_url,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
